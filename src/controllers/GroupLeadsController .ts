@@ -5,9 +5,18 @@ import { addLeadGroupRequestSchema } from "./schemas/GroupsResquestSchema.js";
 import { connect } from "http2";
 import { GetLeadsRequestSchema } from "./schemas/LeadRequestSchema.js";
 import type { Prisma } from "@prisma/client";
+import type { GroupsRespository } from "src/repositories/GroupsRepository.js";
+import type { LeadsRepository, LeadWhereParams } from "src/repositories/LeadsRepository.js";
 
 
 export class GroupLeadsController {
+    constructor(
+        private readonly groupsRepository: GroupsRespository,
+        private readonly leadsRepository: LeadsRepository
+    ) {
+
+    }
+
     getLeads: Handler = async (req, res, next) => {
         try {
             const groupId = Number(req.params.groupId);
@@ -15,41 +24,34 @@ export class GroupLeadsController {
             const query = GetLeadsRequestSchema.parse(req.query);
 
             const { page = '1', pageSize = '10', name, status, sortBy = 'name', order = 'asc' } = query;
-            const pageNumber = Number(page);
-            const pageSizeNumber = Number(pageSize);
+            const limit = Number(pageSize);
+            const offset = (Number(page) - 1) * limit
 
-            const where: Prisma.LeadWhereInput = {
-                groups: {
-                    some: {
-                        id: groupId
-                    }
-                }
-            }
+            const where: LeadWhereParams = { groupId }
 
-            if (name) where.name = { contains: name, mode: 'insensitive' };
+            if (name) where.name = { like: name, mode: 'insensitive' };
             if (status) where.status = status;
 
-            const leads = await prisma.lead.findMany({
+            const leads = await this.leadsRepository.find({
                 where,
-                orderBy: { [sortBy]: order },
-                skip: (pageNumber - 1) * pageSizeNumber,
-                take: pageSizeNumber,
-                include: {
-                    groups: true
-                }
-            });
+                sortBy,
+                order,
+                limit,
+                offset,
+                includes: {groups: true}
+            })
 
-            const total = await prisma.lead.count({ where })
+            const total = await this.leadsRepository.count(where)
 
             if (!leads) throw new HttpError(404, `Grupo não encontrado`);
 
             res.status(200).json({
                 leads,
                 meta: {
-                    page: pageNumber,
-                    pageSize: pageSizeNumber,
+                    page: Number(page),
+                    pageSize: limit,
                     total,
-                    totalPages: Math.ceil(total / pageSizeNumber)
+                    totalPages: Math.ceil(total / limit)
                 }
             })
 
@@ -62,19 +64,9 @@ export class GroupLeadsController {
         try {
             const groupId = Number(req.params.groupId);
 
-            const body = addLeadGroupRequestSchema.parse(req.body)
+            const { leadId } = addLeadGroupRequestSchema.parse(req.body)
 
-            const addLead = await prisma.group.update({
-                where: { id: groupId },
-                data: {
-                    leads: {
-                        connect: {
-                            id: body.leadId
-                        }
-                    }
-                },
-                include: { leads: true }
-            })
+            const addLead = await this.groupsRepository.addLead(groupId, leadId)
 
             res.status(201).json(addLead)
 
@@ -90,17 +82,9 @@ export class GroupLeadsController {
             const groupId = Number(req.params.groupId);
             const leadId = Number(req.params.leadId);
 
-            const updatedGroup = await prisma.group.update({
-                where: { id: groupId },
-                data: {
-                    leads: {
-                        disconnect: {
-                            id: leadId
-                        }
-                    }
-                },
-                include: {leads: true}
-            })
+            const updatedGroup = await this.groupsRepository.removeLead(groupId, leadId);
+
+            if (!updatedGroup) throw new HttpError(404, `Grupo ou lead não encontrado`)
 
             return res.status(201).json(updatedGroup);
 
