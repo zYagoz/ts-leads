@@ -25,7 +25,7 @@ export class LeadsController {
             if (status) where.status = status;
 
             const leads = await this.leadsRepository.find({
-                where: where,
+                where,
                 sortBy,
                 order,
                 limit,

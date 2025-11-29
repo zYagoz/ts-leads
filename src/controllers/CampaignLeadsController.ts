@@ -2,118 +2,102 @@ import type { Handler } from "express";
 import type { Prisma } from "@prisma/client";
 import { AddLeadResquestSchema, GetCampaignLeadResquestSchema, UpdateLeadStatusRequestSchema } from "./schemas/CampaignsResquestSchema.js";
 import { prisma } from "src/database/index.js";
+import type { CampaignLeadsRepository, CampaingLeasdWhereParams } from "src/repositories/CampaignsLeadsRepository.js";
+import { HttpError } from "src/errors/HttpError.js";
 
-export class CampaignLeadsController{
-    getLeads: Handler = async (req,res, next) => {
+export class CampaignLeadsController {
+    constructor(private readonly campaignLeadsRepository: CampaignLeadsRepository){
+    }
+    
+    getLeads: Handler = async (req, res, next) => {
         try {
             const campaignId = Number(req.params.campaignId);
             const query = GetCampaignLeadResquestSchema.parse(req.body);
 
-            const {page = '1', pageSize = '10', name, status, sortBy = 'name', order = 'asc'} = query;
+            const { page = '1', pageSize = '10', name, status, sortBy = 'name', order = 'asc' } = query;
 
-            const pageNumber = Number(page);
-            const pageSizeNumber = Number(pageSize);
+            const limit = Number(pageSize);
+            const offset = (Number(page) - 1) * limit
 
-            const where: Prisma.LeadWhereInput = {
-                campaigns: {
-                    some: {campaignId}
-                }
-            }
+            const where: CampaingLeasdWhereParams = {}
 
-            if(name) where.name = {contains: name, mode: "insensitive"};
-            if(status) where.campaigns = { some: {status}}
+            if (name) where.name = { like: name, mode: "insensitive" };
+            if (status) where.status = { some: { status } }
 
-            const leads = await prisma.lead.findMany({
+            const leads = await this.campaignLeadsRepository.findLeads({
                 where,
-                orderBy: {[sortBy]: order},
-                skip: (pageNumber - 1) * pageSizeNumber,
-                take: pageNumber,
-                include: {
-                    campaigns: {
-                        select: {
-                            campaignId: true,
-                            leadId: true,
-                            status: true
-                        }
-                    }
-                }
-            });
+                sortBy,
+                order,
+                limit,
+                offset
+            })
 
-            const total = await prisma.lead.count({where});
+            const total = await this.campaignLeadsRepository.count(where);
 
             res.status(201).json({
                 leads,
                 meta: {
-                    page: pageNumber,
-                    pageSize: pageSizeNumber,
+                    page: Number(page),
+                    pageSize: limit,
                     total,
-                    totalPages: Math.ceil(total / pageSizeNumber)
+                    totalPages: Math.ceil(total / limit)
                 }
             })
 
         } catch (error) {
-           next(error) 
+            next(error)
         }
     }
 
-    addLead: Handler = async (req,res, next) => {
+    addLead: Handler = async (req, res, next) => {
         try {
             const body = AddLeadResquestSchema.parse(req.body);
+            const campaignId = Number(req.params.campaignId)
 
             // const cleanData: Prisma.LeadCampaignCreateInput = JSON.parse(JSON.stringify(body));
 
-            await prisma.leadCampaign.create({
-                data: {
-                    campaignId: Number(req.params.campaignId),
-                    leadId: body.leadId,
-                    status: body.status
-                }
-            })
-            
+            const addedLead = await this.campaignLeadsRepository.addLeadById(body.leadId, campaignId, body.status);
+
+            if(!addedLead) throw new HttpError(404, "Não foi possível adicionar o lead");
+
             res.status(201).end()
 
         } catch (error) {
-           next(error) 
+            next(error)
         }
     }
 
-    updateLeadStatus: Handler = async (req,res, next) => {
+    updateLeadStatus: Handler = async (req, res, next) => {
         try {
             const body = UpdateLeadStatusRequestSchema.parse(req.body);
+            const leadId = Number(req.params.leadId);
+            const campaignId = Number(req.params.campaignId);
 
-            const udpatedLeadCampaing = await prisma.leadCampaign.update({
-                data: body,
-                where: {
-                    leadId_campaignId: {
-                        leadId: Number(req.params.leadId),
-                        campaignId: Number(req.params.campaignId)
-                    }
-                }
-            })
+            const udpatedLeadCampaing = await this.campaignLeadsRepository.updateLeadStatusById(leadId, campaignId, body);
+
+            if(!udpatedLeadCampaing) throw new HttpError(404, "Não foi possível atualizar o lead");
 
             res.status(201).json(udpatedLeadCampaing)
 
         } catch (error) {
-           next(error) 
+            next(error)
         }
     }
 
-    removeLead: Handler = async (req,res, next) => {
+    removeLead: Handler = async (req, res, next) => {
         try {
 
-            const removedLead = await prisma.leadCampaign.delete({
-                where: {
-                    leadId_campaignId:{
-                        campaignId: Number(req.params.campaignId),
-                        leadId: Number(req.params.leadId)
-                    }
-                }
-            })
+            const leadId = Number(req.params.leadId);
+            const campaignId = Number(req.params.campaignId);
 
-            res.status(201).json({removedLead})
-            
+            const removedLead = await this.campaignLeadsRepository.removeLeadById(leadId, campaignId);
+
+            if(!removedLead) throw new HttpError(404, "Não foi possível remover o lead");
+
+            res.status(201).json({ removedLead })
+
         } catch (error) {
-           next(error) 
+            next(error)
         }
     }
 }
