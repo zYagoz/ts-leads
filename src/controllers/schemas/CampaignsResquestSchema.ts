@@ -39,6 +39,7 @@ export const GetCampaignLeadResquestSchema = z.object({
 
 export const AddLeadResquestSchema = z.object({
     leadId: z.coerce.number(),
+    campaignId: z.coerce.number(),
     status: LeadCampaignStatusSchema
 })
 

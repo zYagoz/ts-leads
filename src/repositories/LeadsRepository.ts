@@ -1,5 +1,6 @@
 import type { Lead } from "@prisma/client";
 import type { BlobOptions } from "buffer";
+import type { LeadCampaignStatus } from "./CampaignsLeadsRepository.js";
 
 export type LeadStatus =  'New' | 'Contact' | 'Qualified' | 'Converted' |'Unresponsive'
 | 'Disqualified' |'Archived'
@@ -11,7 +12,9 @@ export interface LeadWhereParams{
         mode?: "default" | "insensitive"
     }
     status?: LeadStatus
+    campaignStatus?: LeadCampaignStatus
     groupId?: number
+    campaignId?: number
 }
 
 export interface FindLeadsParams{

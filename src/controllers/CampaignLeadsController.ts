@@ -4,27 +4,30 @@ import { AddLeadResquestSchema, GetCampaignLeadResquestSchema, UpdateLeadStatusR
 import { prisma } from "src/database/index.js";
 import type { CampaignLeadsRepository, CampaingLeasdWhereParams } from "src/repositories/CampaignsLeadsRepository.js";
 import { HttpError } from "src/errors/HttpError.js";
+import type { LeadsRepository, LeadWhereParams } from "src/repositories/LeadsRepository.js";
 
 export class CampaignLeadsController {
-    constructor(private readonly campaignLeadsRepository: CampaignLeadsRepository){
+    constructor(
+        private readonly campaignLeadsRepository: CampaignLeadsRepository,
+        private readonly leadsRepository: LeadsRepository
+
+    ) {
     }
-    
+
     getLeads: Handler = async (req, res, next) => {
         try {
             const campaignId = Number(req.params.campaignId);
-            const query = GetCampaignLeadResquestSchema.parse(req.body);
-
+            const query = GetCampaignLeadResquestSchema.parse(req.query);
             const { page = '1', pageSize = '10', name, status, sortBy = 'name', order = 'asc' } = query;
 
             const limit = Number(pageSize);
             const offset = (Number(page) - 1) * limit
 
-            const where: CampaingLeasdWhereParams = {}
+            const where: LeadWhereParams = { campaignId, campaignStatus: status }
 
             if (name) where.name = { like: name, mode: "insensitive" };
-            if (status) where.status = { some: { status } }
 
-            const leads = await this.campaignLeadsRepository.findLeads({
+            const leads = await this.leadsRepository.find({
                 where,
                 sortBy,
                 order,
@@ -32,7 +35,7 @@ export class CampaignLeadsController {
                 offset
             })
 
-            const total = await this.campaignLeadsRepository.count(where);
+            const total = await this.leadsRepository.count(where);
 
             res.status(201).json({
                 leads,
@@ -51,14 +54,12 @@ export class CampaignLeadsController {
 
     addLead: Handler = async (req, res, next) => {
         try {
-            const body = AddLeadResquestSchema.parse(req.body);
-            const campaignId = Number(req.params.campaignId)
+            const campaignId = Number(req.params.campaignId);
+            const { leadId, status = 'New' } = AddLeadResquestSchema.parse(req.body);
 
-            // const cleanData: Prisma.LeadCampaignCreateInput = JSON.parse(JSON.stringify(body));
+            const addedLead = await this.campaignLeadsRepository.addLeadById({ campaignId, leadId, status });
 
-            const addedLead = await this.campaignLeadsRepository.addLeadById(body.leadId, campaignId, body.status);
-
-            if(!addedLead) throw new HttpError(404, "Não foi possível adicionar o lead");
+            if (!addedLead) throw new HttpError(404, "Não foi possível adicionar o lead");
 
             res.status(201).end()
 
@@ -69,15 +70,15 @@ export class CampaignLeadsController {
 
     updateLeadStatus: Handler = async (req, res, next) => {
         try {
-            const body = UpdateLeadStatusRequestSchema.parse(req.body);
-            const leadId = Number(req.params.leadId);
             const campaignId = Number(req.params.campaignId);
+            const leadId = Number(req.params.leadId);
+            const { status } = AddLeadResquestSchema.parse(req.body);
 
-            const udpatedLeadCampaing = await this.campaignLeadsRepository.updateLeadStatusById(leadId, campaignId, body);
+            const udpatedLeadCampaing = await this.campaignLeadsRepository.updateLeadStatusById({ campaignId, leadId, status });
 
-            if(!udpatedLeadCampaing) throw new HttpError(404, "Não foi possível atualizar o lead");
+            if (!udpatedLeadCampaing) throw new HttpError(404, "Não foi possível atualizar o lead");
 
-            res.status(201).json(udpatedLeadCampaing)
+            res.status(204).json({ message: `Status do lead atualizado` })
 
         } catch (error) {
             next(error)
@@ -92,7 +93,7 @@ export class CampaignLeadsController {
 
             const removedLead = await this.campaignLeadsRepository.removeLeadById(leadId, campaignId);
 
-            if(!removedLead) throw new HttpError(404, "Não foi possível remover o lead");
+            if (!removedLead) throw new HttpError(404, "Não foi possível remover  o lead");
 
             res.status(201).json({ removedLead })
 

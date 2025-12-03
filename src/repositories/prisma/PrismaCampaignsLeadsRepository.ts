@@ -1,5 +1,5 @@
 import type { LeadCampaign, Lead } from "@prisma/client";
-import type { CampaignLeadsRepository, CampaingLeasdWhereParams, CreateLeadCampaignAttributes, FindCampaignLeadsParams, LeadCampaignStatus } from "../CampaignsLeadsRepository.js";
+import type { AddLeadToCampaignAttributes, CampaignLeadsRepository, CampaingLeasdWhereParams, CreateLeadCampaignAttributes, FindCampaignLeadsParams, LeadCampaignStatus } from "../CampaignsLeadsRepository.js";
 import { prisma } from "src/database/index.js";
 
 export class PrismaCampaignLeadsRepositoy implements CampaignLeadsRepository {
@@ -48,37 +48,28 @@ export class PrismaCampaignLeadsRepositoy implements CampaignLeadsRepository {
 
     }
 
-    addLeadById(leadId: number, campaignId: number, status?: LeadCampaignStatus): Promise<LeadCampaign> {
-        return prisma.leadCampaign.create({
-            data: {
-                campaignId,
-                leadId,
-                status
-            }
-        })
+    async addLeadById(attributes: AddLeadToCampaignAttributes): Promise<LeadCampaign> {
+        return await prisma.leadCampaign.create({ data: attributes })
 
     }
 
-    updateLeadStatusById(leadId: number, campaignId: number, attributes: CreateLeadCampaignAttributes): Promise<LeadCampaign | null> {
-        return prisma.leadCampaign.update({
+    async updateLeadStatusById(attributes: AddLeadToCampaignAttributes): Promise<LeadCampaign | null> {
+        return await prisma.leadCampaign.update({
             data: attributes,
             where: {
                 leadId_campaignId: {
-                    leadId,
-                    campaignId
+                    leadId: attributes.leadId,
+                    campaignId : attributes.campaignId
                 }
             }
         })
 
     }
 
-    removeLeadById(leadId: number, campaignId: number): Promise<LeadCampaign | null> {
+    async removeLeadById(leadId: number, campaignId: number): Promise<LeadCampaign | null> {
         return prisma.leadCampaign.delete({
             where: {
-                leadId_campaignId: {
-                    leadId,
-                    campaignId
-                }
+                leadId_campaignId: { leadId, campaignId }
             }
         })
 

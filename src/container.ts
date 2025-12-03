@@ -17,5 +17,5 @@ export const campaignLeadsRepository = new PrismaCampaignLeadsRepositoy()
 export const leadsController = new LeadsController(leadsRepository);
 export const groupsController = new GroupsController(groupsRepository);
 export const campaignController = new CampaignsController(campaignsRepository);
-export const campaignLeadsController = new CampaignLeadsController(campaignLeadsRepository);
+export const campaignLeadsController = new CampaignLeadsController(campaignLeadsRepository, leadsRepository);
 export const groupLeadsController = new GroupLeadsController(groupsRepository, leadsRepository);

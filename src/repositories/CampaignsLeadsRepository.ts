@@ -42,10 +42,16 @@ export interface CreateLeadCampaignAttributes {
     status?: LeadCampaignStatus
 }
 
+export interface AddLeadToCampaignAttributes{
+    campaignId: number
+    leadId: number
+    status: LeadCampaignStatus
+}
+
 export interface CampaignLeadsRepository {
     findLeads: (params : FindCampaignLeadsParams) => Promise<Lead[]>
     count: (where: Partial<CampaingLeasdWhereParams>) => Promise<number>
-    addLeadById: (leadId: number, campaignId: number, status?: LeadCampaignStatus) => Promise<LeadCampaign>
-    updateLeadStatusById: (leadId: number, campaignId: number, attributes: CreateLeadCampaignAttributes) => Promise<LeadCampaign | null>
+    addLeadById: (attributes: AddLeadToCampaignAttributes) => Promise<LeadCampaign>
+    updateLeadStatusById: (attributes: AddLeadToCampaignAttributes) => Promise<LeadCampaign | null>
     removeLeadById: (leadId: number, campaignId: number) => Promise<LeadCampaign | null>
 }

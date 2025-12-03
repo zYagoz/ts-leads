@@ -11,7 +11,11 @@ export class PrismaCampaignsRepository implements CampaignsRepository{
         return prisma.campaign.findUnique({
             where: {id},
             include: {
-                leads: true
+                leads: {
+                    include:{
+                        lead: true
+                    }
+                }
             }
         })
     }
@@ -20,14 +24,22 @@ export class PrismaCampaignsRepository implements CampaignsRepository{
         return prisma.campaign.create({data: attributes})
     }
 
-    updateById (id: number, attributes: Partial<CreateCampaignAttributes>) : Promise<Campaign | null>{
+    async updateById (id: number, attributes: Partial<CreateCampaignAttributes>) : Promise<Campaign | null>{
+        const campaignExist = await prisma.campaign.findUnique({where: {id}})
+
+        if(!campaignExist) return null
+        
         return prisma.campaign.update({
             where: {id},
             data: attributes
         })
     }
 
-    deleteById (id: number) : Promise<Campaign | null>{
+    async deleteById (id: number) : Promise<Campaign | null>{
+        const campaignExist = await prisma.campaign.findUnique({where: {id}})
+
+        if(!campaignExist) return null
+            
         return prisma.campaign.delete({where: {id}})
 
     }
