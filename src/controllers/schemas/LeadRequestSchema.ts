@@ -22,7 +22,7 @@ export const GetLeadsRequestSchema = z.object({
 
 export const createLeadResquestSchema = z.object({
     name: z.string().min(1),
-    email: z.string().email,
+    email: z.string(),
     phone: z.string(),
     status: LeadStatusSchema.optional()
 })
